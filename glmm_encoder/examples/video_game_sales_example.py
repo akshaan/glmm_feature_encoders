@@ -1,4 +1,4 @@
-from glmm_encoder.datasets.datasets import load_road_safety_dataset
+from glmm_encoder.datasets.datasets import load_video_game_sales_dataset
 from xgboost import XGBClassifier
 
 from glmm_encoder.examples.example_helpers import (
@@ -17,7 +17,7 @@ def train_model_fn(x, y):
 
 
 if __name__ == "__main__":
-    dataset = load_road_safety_dataset()
+    dataset = load_video_game_sales_dataset()
     preds_dict = {
         "Frequency Encoding": frequency_encoder_model_preds(dataset, train_model_fn),
         "Impact Encoding": impact_encoder_model_preds(dataset, train_model_fn),

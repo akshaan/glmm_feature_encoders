@@ -7,7 +7,7 @@ from itertools import chain
 from dataclasses import dataclass
 import openml
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import OrdinalEncoder
+from sklearn.preprocessing import OrdinalEncoder, LabelEncoder
 
 
 def load_toy_regression_dataset(
@@ -76,15 +76,22 @@ class Dataset:
     openml_id: int
 
 
-def __load_openml_dataset(openml_id: int, col_to_encode) -> Dataset:
-    response = openml.datasets.get_dataset(openml_id)
-    print(f"Loading {response.name} (OpenML Id = {openml_id})")
-    X, y, categorical_indicator, attribute_names = response.get_data(
+def load_avocado_sales_dataset() -> Dataset:
+    dataset_id = 41210
+    response = openml.datasets.get_dataset(dataset_id)
+    print(f"Loading {response.name} (OpenML Id = {dataset_id})...")
+    x, y, categorical_indicator, attribute_names = response.get_data(
         target=response.default_target_attribute, dataset_format="dataframe"
     )
-    print(X)
-    train_features, test_features, train_labels, test_labels = train_test_split(X, y, test_size=0.2)
-    # Ordinal encoder all features barring the one we want to experiment with (i.e. col_to_encode)
+    print("Done loading dataset.")
+    print("Clean loaded data...")
+    # Split into train/test sets
+    train_features, test_features, train_labels, test_labels = train_test_split(x, y, test_size=0.2)
+
+    # Ordinal encode all feature including the one we want to encode with custom encoders
+    # This makes it easy to use these columns directly in models. For the custom encoding column,
+    # this does not change anything, since a string or other level type for that feature is equivalent
+    # to an integer type.
     for feature_name, is_categorical in zip(attribute_names, categorical_indicator):
         if not is_categorical:
             continue
@@ -92,18 +99,58 @@ def __load_openml_dataset(openml_id: int, col_to_encode) -> Dataset:
         train_features.loc[:, feature_name] = encoder.transform(train_features[[feature_name]])
         test_features.loc[:, feature_name] = encoder.transform(test_features[[feature_name]])
 
+    print("Done cleaning.")
     return Dataset(
         train_features=train_features,
         test_features=test_features,
         train_labels=train_labels,
         test_labels=test_labels,
-        col_to_encode=col_to_encode,
-        feature_names=attribute_names, name=response.name, openml_id=openml_id)
+        col_to_encode="region",
+        feature_names=attribute_names, name=response.name, openml_id=dataset_id)
 
 
-def load_avocado_sales_dataset() -> Dataset:
-    return __load_openml_dataset(41210, col_to_encode="region")
+def load_video_game_sales_dataset() -> Dataset:
+    dataset_id = 41216
+    response = openml.datasets.get_dataset(dataset_id)
+    print(f"Loading {response.name} (OpenML Id = {dataset_id})...")
+    x, y, categorical_indicator, attribute_names = response.get_data(
+        target=response.default_target_attribute, dataset_format="dataframe"
+    )
+    print("Done loading dataset.")
+    print("Cleaning loaded data...")
 
+    # Clean NaN rows
+    rows_with_nan = [index for index, row in x.iterrows() if row.isnull().any()]
+    x = x[~x.index.isin(rows_with_nan)]
+    y = y[~y.index.isin(rows_with_nan)]
 
-def load_road_safety_dataset() -> Dataset:
-    return __load_openml_dataset(42803, col_to_encode="LSOA_of_Accident_Location")
+    # Split into train/test sets
+    train_features, test_features, train_labels, test_labels = train_test_split(x, y, test_size=0.2)
+
+    # Ordinal encode all feature including the one we want to encode with custom encoders
+    # This makes it easy to use these columns directly in models. For the custom encoding column,
+    # this does not change anything, since a string or other level type for that feature is equivalent
+    # to an integer type.
+    for feature_name, is_categorical in zip(attribute_names, categorical_indicator):
+        if not is_categorical:
+            continue
+        encoder = OrdinalEncoder(
+            dtype=np.int64,
+            handle_unknown="use_encoded_value",
+            unknown_value=-1).fit(train_features[[feature_name]])
+        train_features.loc[:, feature_name] = encoder.transform(train_features[[feature_name]])
+        test_features.loc[:, feature_name] = encoder.transform(test_features[[feature_name]])
+
+    # Encode string labels as integers
+    label_encoder = LabelEncoder().fit(train_labels)
+    train_labels = pd.Series(label_encoder.transform(train_labels))
+    test_labels = pd.Series(label_encoder.transform(test_labels))
+
+    print("Done cleaning.")
+    return Dataset(
+        train_features=train_features,
+        test_features=test_features,
+        train_labels=train_labels,
+        test_labels=test_labels,
+        col_to_encode="Publisher",
+        feature_names=attribute_names, name=response.name, openml_id=dataset_id)
