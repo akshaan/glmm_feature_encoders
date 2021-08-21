@@ -1,10 +1,10 @@
 """Base class for encoders"""
+from typing import Any, Dict, List, Tuple
 
 import tensorflow as tf
 import tensorflow_probability as tfp
 from enum import Enum
 import math
-from abc import ABC, abstractmethod
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -18,14 +18,14 @@ class TaskTypes(Enum):
 
 
 class BaseGLMMSingleTargetEncoder(tf.keras.Model):
-    def __init__(self, num_levels, task_type, seed=None):
+    def __init__(self, num_levels: int, task_type: TaskTypes, seed: float = None):
         super().__init__()
         self.num_levels = num_levels
         self.__task_type = task_type
         self.surrogate_posterior = self.make_surrogate_posterior()
         self.seed = seed
 
-    def make_joint_distribution_coroutine(self, feature_vals):
+    def make_joint_distribution_coroutine(self, feature_vals: tf.Tensor) -> tfd.Distribution:
         def model():
             level_scale = yield tfd.Uniform(low=0., high=2., name='scale_prior')
             intercept = yield tfd.Normal(loc=0., scale=1, name='intercept')
@@ -45,7 +45,7 @@ class BaseGLMMSingleTargetEncoder(tf.keras.Model):
 
         return tfd.JointDistributionCoroutineAutoBatched(model)
 
-    def make_surrogate_posterior(self):
+    def make_surrogate_posterior(self) -> tfd.Distribution:
         _init_loc = lambda shape=(): tf.Variable(
             tf.random.uniform(shape, minval=-2., maxval=2.))
         _init_scale = lambda shape=(): tfp.util.TransformedVariable(
@@ -56,7 +56,7 @@ class BaseGLMMSingleTargetEncoder(tf.keras.Model):
             tfd.Normal(_init_loc(), _init_scale()),  # intercept
             tfd.Normal(_init_loc([self.num_levels]), _init_scale([self.num_levels]))])  # level_prior
 
-    def call(self, feature_vals, training=None, mask=None):
+    def call(self, feature_vals: tf.Tensor, training: bool = None, mask: Any = None) -> tf.Tensor:
         model = self.surrogate_posterior.model
         intercept_estimate = model[1].mode()
         random_effect_estimate = model[2].mode()
@@ -75,14 +75,16 @@ class BaseGLMMSingleTargetEncoder(tf.keras.Model):
             )
         return tf.gather(random_effect_estimate_with_missing, feature_vals_with_missing, axis=-1) + intercept_estimate
 
-    def print_posterior_estimates(self):
+    def print_posterior_estimates(self) -> None:
         model = self.surrogate_posterior.model
         intercept_estimate = model[1].mode()
         print(f"Intercept estimate = {intercept_estimate}")
+
         def softplus(x): return math.log1p(math.exp(-abs(x))) + max(x, 0)
+
         print(f"Random effect variance estimate = {softplus(model[0].distribution.mean().numpy())}")
 
-    def train_step(self, data):
+    def train_step(self, data) -> Dict[str, tf.Tensor]:
         x, y = data
         joint = self.make_joint_distribution_coroutine(x)
 
@@ -102,17 +104,17 @@ class BaseGLMMSingleTargetEncoder(tf.keras.Model):
 
 
 class GLMMRegressionTargetEncoder(BaseGLMMSingleTargetEncoder):
-    def __init__(self, num_levels, seed=None):
+    def __init__(self, num_levels: int, seed: float = None):
         super().__init__(num_levels, task_type=TaskTypes.REGRESSION, seed=seed)
 
 
 class GLMMBinaryTargetEncoder(BaseGLMMSingleTargetEncoder):
-    def __init__(self, num_levels, seed=None):
+    def __init__(self, num_levels: int, seed: float = None):
         super().__init__(num_levels, task_type=TaskTypes.BINARY_CLASSIFICATION, seed=seed)
 
 
 class GLMMMulticlassTargetEncoder(tf.keras.Model):
-    def __init__(self, num_levels, num_classes, seed=None):
+    def __init__(self, num_levels: int, num_classes: int, seed: float = None):
         super().__init__()
         self.num_levels = num_levels
         self.__task_type = TaskTypes.MUTLICLASS_CLASSIFICATION
@@ -120,15 +122,15 @@ class GLMMMulticlassTargetEncoder(tf.keras.Model):
         self.seed = seed
         self.models = [GLMMBinaryTargetEncoder(num_levels) for _ in range(num_classes)]
 
-    def call(self, feature_vals, training=None, mask=None):
+    def call(self, feature_vals: tf.Tensor, training: bool = None, mask: Any = None):
         return tf.stack(
             [m(feature_vals) for m in self.models],
             axis=-1
         )
 
-    def compile(self, optimizer='rmsprop', loss=None, metrics=None, loss_weights=None,
-        weighted_metrics=None, run_eagerly=None, steps_per_execution=None, **kwargs
-    ):
+    def compile(self, optimizer: Any = 'rmsprop', loss: Any = None, metrics: Any = None, loss_weights: Any = None,
+                weighted_metrics: Any = None, run_eagerly: Any = None, steps_per_execution: Any = None, **kwargs
+                ):
         for model in self.models:
             model.compile(
                 optimizer=optimizer,
@@ -152,7 +154,7 @@ class GLMMMulticlassTargetEncoder(tf.keras.Model):
         )
 
     @staticmethod
-    def __merge_metrics(metrics_dict_list):
+    def __merge_metrics(metrics_dict_list: List[Dict[str, tf.Tensor]]) -> Dict[str, tf.Tensor]:
         merged_metrics = {}
         key_to_merge_func = {"loss": tf.reduce_sum}
         for key, merge_func in key_to_merge_func.items():
@@ -160,7 +162,7 @@ class GLMMMulticlassTargetEncoder(tf.keras.Model):
             merged_metrics[key] = merge_func(metric)
         return merged_metrics
 
-    def train_step(self, data):
+    def train_step(self, data: Tuple[tf.Tensor, tf.Tensor]) -> Dict[str, tf.Tensor]:
         x, y = data
         per_class_metrics_dicts = []
         for c in range(self.num_classes):
@@ -169,11 +171,13 @@ class GLMMMulticlassTargetEncoder(tf.keras.Model):
 
         return self.__merge_metrics(per_class_metrics_dicts)
 
-    def print_posterior_estimates(self):
+    def print_posterior_estimates(self) -> None:
         for i, class_model in enumerate(self.models):
             print(f"Sub-model for class {i}")
             model = class_model.surrogate_posterior.model
             intercept_estimate = model[1].mode()
             print(f"\tIntercept estimate = {intercept_estimate}")
+
             def softplus(x): return math.log1p(math.exp(-abs(x))) + max(x, 0)
+
             print(f"\tRandom effect variance estimate = {softplus(model[0].distribution.mean().numpy())}")
