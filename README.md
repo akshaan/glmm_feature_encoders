@@ -9,7 +9,7 @@ using variational inference with a mean-field variational posterior over model p
 
 ### TODOs:
 - [] Test with real datasets (avocado-sales, Midwest_survey)
-- [] Add cross validation support?
 - [] Try distributed training and add example
-- [] Typing, linting, tests, docstrings
 - [] Timing and accuracy comparison with lme4
+- [] Add cross validation support?
+- [] Typing, linting, tests, docstrings

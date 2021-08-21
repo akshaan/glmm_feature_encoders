@@ -11,6 +11,9 @@ INSTALL_REQUIRES = [
     "seaborn==0.11.1",
     "tensorflow==2.6.0",
     "tensorflow-probability==0.13.0",
+    "openml==0.12.2",
+    "scikit-learn==0.24.2",
+    "xgboost==1.4.2"
 ]
 
 TESTS_REQUIRE = []
