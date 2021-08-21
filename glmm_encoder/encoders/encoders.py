@@ -58,12 +58,23 @@ class BaseGLMMTargetEncoder(tf.keras.Model):
             tfd.Normal(_init_loc([self.num_levels]), _init_scale([self.num_levels]))])  # level_prior
 
     def call(self, feature_vals, training=None, mask=None):
-        # N.b. this method does not account for feature levels that don't appear in the training set
-        # For those features, this method needs to be modified to return the global intercept
         model = self.surrogate_posterior.model
         intercept_estimate = model[1].mode()
         random_effect_estimate = model[2].mode()
-        return tf.gather(random_effect_estimate, feature_vals, axis=-1) + intercept_estimate
+        if training:
+            return tf.gather(random_effect_estimate, feature_vals, axis=-1) + intercept_estimate
+        else:
+            # In order to accommodate new feature levels (not in train set) during prediction, we create
+            # a new level (self.num_levels) and assign all unseen levels to that value. We also add a
+            # corresponding 0 entry to the random_effect_estimate vector for that level.
+            # This ensures that unseen levels are assigned 0 + intercept_estimate in the output
+            random_effect_estimate_with_missing = tf.concat([random_effect_estimate, tf.zeros([1])], axis=-1)
+            feature_vals_with_missing = tf.where(
+                tf.math.logical_and(feature_vals < self.num_levels, feature_vals >= 0),
+                x=feature_vals,
+                y=self.num_levels
+            )
+        return tf.gather(random_effect_estimate_with_missing, feature_vals_with_missing, axis=-1) + intercept_estimate
 
     def print_posterior_estimates(self):
         model = self.surrogate_posterior.model
