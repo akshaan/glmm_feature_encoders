@@ -39,3 +39,6 @@ def load_toy_binary_classification_dataset(feature_levels=25, samples_per_level=
     x = chain(*[[level] * samples_per_level for level in range(feature_levels)])
 
     return pd.DataFrame({"x": x, "y": y})
+
+def load_toy_multiclass_classification_dataset(feature_levels=25, samples_per_level=1000, seed=None):
+    pass
