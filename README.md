@@ -8,8 +8,7 @@ The GLMM models are described using Tensorflow Probability (TFP) distributions a
 using variational inference with a mean-field variational posterior over model paramters.
 
 ### TODOs:
-- [] Test with real datasets (avocado-sales, Midwest_survey)
 - [] Try distributed training and add example
-- [] Timing and accuracy comparison with lme4
-- [] Add cross validation support?
+- [] Acc comparison with lme4
 - [] Typing, linting, tests, docstrings
+- Update documentation

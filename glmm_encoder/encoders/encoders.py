@@ -6,10 +6,11 @@ import tensorflow_probability as tfp
 from enum import Enum
 import math
 
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+
 tfd = tfp.distributions
 tfb = tfp.bijectors
 tfl = tfp.layers
-
 
 class TaskTypes(Enum):
     REGRESSION = 1
@@ -96,7 +97,7 @@ class BaseGLMMSingleTargetEncoder(tf.keras.Model):
             self.surrogate_posterior,
             optimizer=self.optimizer,
             num_steps=1,
-            seed=self.seed,
+            seed=42,
             sample_size=5
         )
 
