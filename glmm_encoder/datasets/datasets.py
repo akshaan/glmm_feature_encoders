@@ -5,7 +5,10 @@ import pandas as pd
 from itertools import chain
 
 
-def load_toy_regression_dataset(feature_levels=25, samples_per_level=1000, seed=None):
+def load_toy_regression_dataset(
+        feature_levels: int = 25,
+        samples_per_level: int = 1000,
+        seed: float = None) -> pd.DataFrame:
     if seed:
         np.random.seed(seed)
     fixed_effect = 1
@@ -22,7 +25,10 @@ def load_toy_regression_dataset(feature_levels=25, samples_per_level=1000, seed=
     return pd.DataFrame({"x": x, "y": y})
 
 
-def load_toy_binary_classification_dataset(feature_levels=25, samples_per_level=1000, seed=None):
+def load_toy_binary_classification_dataset(
+        feature_levels: int = 25,
+        samples_per_level: int = 1000,
+        seed: float = None) -> pd.DataFrame:
     if seed:
         np.random.seed(seed)
     fixed_effect = 1
@@ -41,7 +47,11 @@ def load_toy_binary_classification_dataset(feature_levels=25, samples_per_level=
     return pd.DataFrame({"x": x, "y": y})
 
 
-def load_toy_multiclass_classification_dataset(feature_levels=25, num_classes=5, samples_per_level=1000, seed=None):
+def load_toy_multiclass_classification_dataset(
+        feature_levels: int = 25,
+        num_classes: int = 5,
+        samples_per_level: int = 1000,
+        seed: float = None):
     if seed:
         np.random.seed(seed)
     x = chain(*[[level] * samples_per_level for level in range(feature_levels)])
