@@ -1,5 +1,5 @@
 """Encoders"""
 
 from glmm_encoder.encoders.encoders import (
-    GLMMRegressionTargetEncoder, GLMMBinaryTargetEncoder
+    GLMMRegressionTargetEncoder, GLMMBinaryTargetEncoder, GLMMMulticlassTargetEncoder
 )

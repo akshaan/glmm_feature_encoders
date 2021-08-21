@@ -40,5 +40,11 @@ def load_toy_binary_classification_dataset(feature_levels=25, samples_per_level=
 
     return pd.DataFrame({"x": x, "y": y})
 
-def load_toy_multiclass_classification_dataset(feature_levels=25, samples_per_level=1000, seed=None):
-    pass
+
+def load_toy_multiclass_classification_dataset(feature_levels=25, num_classes=5, samples_per_level=1000, seed=None):
+    if seed:
+        np.random.seed(seed)
+    x = chain(*[[level] * samples_per_level for level in range(feature_levels)])
+    y = [np.random.randint(0, num_classes) for _ in range(feature_levels * samples_per_level)]
+
+    return pd.DataFrame({"x": x, "y": y})

@@ -17,13 +17,12 @@ class TaskTypes(Enum):
     MUTLICLASS_CLASSIFICATION = 3
 
 
-class BaseGLMMTargetEncoder(tf.keras.Model):
+class BaseGLMMSingleTargetEncoder(tf.keras.Model):
     def __init__(self, num_levels, task_type, seed=None):
-        super(BaseGLMMTargetEncoder, self).__init__()
+        super().__init__()
         self.num_levels = num_levels
-        self.task_type = task_type
-        if task_type in [TaskTypes.BINARY_CLASSIFICATION, TaskTypes.REGRESSION]:
-            self.surrogate_posterior = self.make_surrogate_posterior()
+        self.__task_type = task_type
+        self.surrogate_posterior = self.make_surrogate_posterior()
         self.seed = seed
 
     def make_joint_distribution_coroutine(self, feature_vals):
@@ -36,9 +35,9 @@ class BaseGLMMTargetEncoder(tf.keras.Model):
             random_effect = tf.gather(level_prior, feature_vals, axis=-1)
             fixed_effect = intercept
             response = fixed_effect + random_effect
-            if self.task_type in [TaskTypes.BINARY_CLASSIFICATION, TaskTypes.MUTLICLASS_CLASSIFICATION]:
+            if self.__task_type in [TaskTypes.BINARY_CLASSIFICATION, TaskTypes.MUTLICLASS_CLASSIFICATION]:
                 yield tfd.Bernoulli(logits=response, name='likelihood')
-            elif self.task_type == TaskTypes.REGRESSION:
+            elif self.__task_type == TaskTypes.REGRESSION:
                 yield tfd.Normal(loc=response, scale=1., name='likelihood')
             else:
                 raise ValueError("Invalid TaskType."
@@ -102,11 +101,79 @@ class BaseGLMMTargetEncoder(tf.keras.Model):
         return {"loss": loss}
 
 
-class GLMMRegressionTargetEncoder(BaseGLMMTargetEncoder):
-    def __init__(self, num_levels):
-        super().__init__(num_levels, TaskTypes.REGRESSION)
+class GLMMRegressionTargetEncoder(BaseGLMMSingleTargetEncoder):
+    def __init__(self, num_levels, seed=None):
+        super().__init__(num_levels, task_type=TaskTypes.REGRESSION, seed=seed)
 
 
-class GLMMBinaryTargetEncoder(BaseGLMMTargetEncoder):
-    def __init__(self, num_levels):
-        super().__init__(num_levels, TaskTypes.BINARY_CLASSIFICATION)
+class GLMMBinaryTargetEncoder(BaseGLMMSingleTargetEncoder):
+    def __init__(self, num_levels, seed=None):
+        super().__init__(num_levels, task_type=TaskTypes.BINARY_CLASSIFICATION, seed=seed)
+
+
+class GLMMMulticlassTargetEncoder(tf.keras.Model):
+    def __init__(self, num_levels, num_classes, seed=None):
+        super().__init__()
+        self.num_levels = num_levels
+        self.__task_type = TaskTypes.MUTLICLASS_CLASSIFICATION
+        self.num_classes = num_classes
+        self.seed = seed
+        self.models = [GLMMBinaryTargetEncoder(num_levels) for _ in range(num_classes)]
+
+    def call(self, feature_vals, training=None, mask=None):
+        return tf.stack(
+            [m(feature_vals) for m in self.models],
+            axis=-1
+        )
+
+    def compile(self, optimizer='rmsprop', loss=None, metrics=None, loss_weights=None,
+        weighted_metrics=None, run_eagerly=None, steps_per_execution=None, **kwargs
+    ):
+        for model in self.models:
+            model.compile(
+                optimizer=optimizer,
+                loss=loss,
+                metrics=metrics,
+                loss_weights=loss_weights,
+                weighted_metrics=weighted_metrics,
+                run_eagerly=run_eagerly,
+                steps_per_execution=steps_per_execution,
+                **kwargs
+            )
+        super().compile(
+            optimizer=optimizer,
+            loss=loss,
+            metrics=metrics,
+            loss_weights=loss_weights,
+            weighted_metrics=weighted_metrics,
+            run_eagerly=run_eagerly,
+            steps_per_execution=steps_per_execution,
+            **kwargs
+        )
+
+    @staticmethod
+    def __merge_metrics(metrics_dict_list):
+        merged_metrics = {}
+        key_to_merge_func = {"loss": tf.reduce_sum}
+        for key, merge_func in key_to_merge_func.items():
+            metric = tf.concat([x[key] for x in metrics_dict_list], axis=-1)
+            merged_metrics[key] = merge_func(metric)
+        return merged_metrics
+
+    def train_step(self, data):
+        x, y = data
+        per_class_metrics_dicts = []
+        for c in range(self.num_classes):
+            y_class = tf.where(y == c, x=1, y=0)
+            per_class_metrics_dicts.append(self.models[c].train_step((x, y_class)))
+
+        return self.__merge_metrics(per_class_metrics_dicts)
+
+    def print_posterior_estimates(self):
+        for i, class_model in enumerate(self.models):
+            print(f"Sub-model for class {i}")
+            model = class_model.surrogate_posterior.model
+            intercept_estimate = model[1].mode()
+            print(f"\tIntercept estimate = {intercept_estimate}")
+            def softplus(x): return math.log1p(math.exp(-abs(x))) + max(x, 0)
+            print(f"\tRandom effect variance estimate = {softplus(model[0].distribution.mean().numpy())}")
