@@ -1,4 +1,5 @@
 """Data visualization functions"""
+from typing import List
 
 import pandas as pd
 import seaborn as sns
@@ -10,7 +11,7 @@ def target_violin_plot_by_feature(data: pd.DataFrame, feature_col: str = "x", ta
     plt.show()
 
 
-def log_likelihood_loss_plot(losses):
+def log_likelihood_loss_plot(losses: List[float]):
     fig, ax = plt.subplots(figsize=(10, 3))
     ax.plot(losses, 'k-')
     ax.set(xlabel="Iteration",
