@@ -1,7 +1,5 @@
-from glmm_encoder.datasets.datasets import (
-    load_toy_binary_classification_dataset,
-)
-from glmm_encoder.viz.viz import log_likelihood_loss_plot
+from glmm_encoder.datasets import load_toy_binary_classification_dataset
+from glmm_encoder.viz import log_likelihood_loss_plot
 from glmm_encoder.encoders import GLMMBinaryTargetEncoder
 import tensorflow_probability as tfp
 import numpy as np
