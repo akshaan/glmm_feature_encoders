@@ -10,9 +10,11 @@ import tempfile
 from pathlib import Path
 import shutil
 from rpy2 import robjects
+from rpy2.robjects.packages import importr
+
 
 parser = argparse.ArgumentParser(description="Toy Binary Classification Examples for GLMM Feature Encoders")
-parser.add_argument("--compare_to_R", help="Compare to R implementation using lme4", action="store_true")
+parser.add_argument("--compare_with_R", help="Compare to R implementation using lme4", action="store_true")
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -26,7 +28,7 @@ if __name__ == "__main__":
 
     model = GLMMRegressionTargetEncoder(n_levels)
     model.compile(optimizer=tf.optimizers.Adam(learning_rate=1e-2))
-    history = model.fit(features, targets, batch_size=1000, epochs=500)
+    history = model.fit(features, targets, batch_size=1000, epochs=1)
     pred_inputs = list(range(0, n_levels + 10))
     predictions = pd.DataFrame(
         list(zip(pred_inputs, model.predict(pred_inputs).flatten().tolist())),
@@ -36,20 +38,27 @@ if __name__ == "__main__":
     model.print_posterior_estimates()
     log_likelihood_loss_plot(history.history["loss"])
 
-    if args.compare_to_R:
+    if args.compare_with_R:
+        print("\n***** FITTING MODEL USING R (lme4)*****\n")
         # Write dataset
         tempdir = tempfile.mkdtemp()
-        dataset.to_csv(tempdir / "regression_dataset.csv")
+        dataset_path = str(Path(tempdir) / "regression_dataset.csv")
+        dataset.to_csv(dataset_path, index=False)
 
         # Run R code
-        r_script_path = Path(__file__).parent / "r_scripts/regression_lmer.R"
-        with open(r_script_path, "r") as script_file:
-            robjects.r(script_file.read())
+        r_script = f"""if (!require(lme4)){{
+            install.packages("lme4")
+            library(lme4)
+            }}
+            library(lme4)
 
-        print("\n Model fit using R (lme4):")
-        print(robjects.r["fit"].r_repr())
+            data <- read.csv('{dataset_path}', header=TRUE)
+            fit <- lmer(y ~ 1 + (1 | x), data=data)
+        """
+
+        robjects.r(r_script)
+        base = importr("base")
+        print(base.summary(robjects.r["fit"]))
 
         # Clean up
         shutil.rmtree(tempdir)
-
-

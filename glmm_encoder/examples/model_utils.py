@@ -7,7 +7,6 @@ from glmm_encoder.examples.dataset_utils import Dataset
 from collections import defaultdict
 from abc import ABC, abstractmethod
 from matplotlib import pyplot as plt
-from itertools import chain
 
 
 class Model(ABC):
