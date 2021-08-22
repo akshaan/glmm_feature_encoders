@@ -35,7 +35,7 @@ if __name__ == "__main__":
             "regression/avocado_sales_example.py",
             "multiclass_classification/video_game_sales_example.py",
             "binary_classification/churn_example.py"]:
-            print(f"Running task examples/{task.upper()}, Num runs (train/test splits) = {args.nruns}")
+            print(f"Running task examples/{task}, Num runs (train/test splits) = {args.nruns}")
             script_path = str(examples_dir / task)
             output_path = str(Path(scores_dir) / (task.split("/")[0] + "_scores.csv"))
             script_args = f"--nruns {args.nruns} --outpath {output_path}"

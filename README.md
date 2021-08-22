@@ -11,6 +11,8 @@ using variational inference with a mean-field variational posterior over model p
 ## Usage
 
 ## Benchmarks
+### Comparing GLMM target encoders to others
+### Comparing this implementation to R (lme4)
 
 ## Caveats
 ### Distributed training
