@@ -7,8 +7,12 @@ by Pargent et al.
 The GLMM models are described using Tensorflow Probability (TFP) distributions and are fit
 using variational inference with a mean-field variational posterior over model paramters.
 
-### TODOs:
-- [] Try distributed training and add example
-- [] Acc comparison with lme4
-- [] Typing, linting, tests, docstrings
-- Update documentation
+
+## Usage
+
+## Benchmarks
+
+## Caveats
+### Distributed training
+### TF Warnings about auto-vectorized join distributions
+### Tests
