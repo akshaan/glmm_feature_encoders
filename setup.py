@@ -19,7 +19,15 @@ INSTALL_REQUIRES = [
     "tensorflow-probability==0.13.0",
 ]
 
-TESTS_REQUIRE = []
+TESTS_REQUIRE = [
+    "mypy==0.780",
+    "pylint>=2.3.1,<2.7.3",
+    "pytest>=5.1.1,<6.00",
+    "pytest-mock>=3.5.1,<3.6.0",
+    "pytest-docstyle>=1.5.0,<2.0.0",
+    "pytest-pylint>=0.14.1,<0.15.0",
+    "pytest-mypy>=0.4.0,<0.5.0",
+]
 
 setup(
     extras_require=EXTRAS_REQUIRE,

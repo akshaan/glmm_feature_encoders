@@ -1,16 +1,12 @@
-"""Base class for encoders"""
-from typing import Any, Dict, List, Tuple
+"""GLMM Target Encoders"""
+
+from typing import Any, Dict, List, Tuple, Iterator
+from enum import Enum
 
 import tensorflow as tf
 import tensorflow_probability as tfp
-from enum import Enum
-import math
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-
-tfd = tfp.distributions
-tfb = tfp.bijectors
-tfl = tfp.layers
 
 class TaskTypes(Enum):
     REGRESSION = 1
@@ -26,60 +22,61 @@ class BaseGLMMSingleTargetEncoder(tf.keras.Model):
         self.surrogate_posterior = self.make_surrogate_posterior()
         self.seed = seed
 
-    def make_joint_distribution_coroutine(self, feature_vals: tf.Tensor) -> tfd.Distribution:
-        def model():
-            level_scale = yield tfd.Uniform(low=0., high=2., name='scale_prior')
-            intercept = yield tfd.Normal(loc=0., scale=1, name='intercept')
-            level_prior = yield tfd.Normal(loc=tf.zeros(self.num_levels),
+    def make_joint_distribution_coroutine(self, feature_vals: tf.Tensor) -> tfp.distributions.Distribution:
+        def model() -> Iterator[tfp.distributions.Distribution]:
+            level_scale = yield tfp.distributions.Uniform(low=0., high=2., name='scale_prior')
+            intercept = yield tfp.distributions.Normal(loc=0., scale=1, name='intercept')
+            level_prior = yield tfp.distributions.Normal(loc=tf.zeros(self.num_levels),
                                            scale=level_scale,
                                            name='level_prior')
             random_effect = tf.gather(level_prior, feature_vals, axis=-1)
             fixed_effect = intercept
             response = fixed_effect + random_effect
             if self.__task_type in [TaskTypes.BINARY_CLASSIFICATION, TaskTypes.MUTLICLASS_CLASSIFICATION]:
-                yield tfd.Bernoulli(logits=response, name='likelihood')
+                yield tfp.distributions.Bernoulli(logits=response, name='likelihood')
             elif self.__task_type == TaskTypes.REGRESSION:
-                yield tfd.Normal(loc=response, scale=1., name='likelihood')
+                yield tfp.distributions.Normal(loc=response, scale=1., name='likelihood')
             else:
                 raise ValueError("Invalid TaskType."
                                  "Must be one of [TaskTypes.REGRESSION, TaskTypes.BINARY_CLASSIFICATION")
 
-        return tfd.JointDistributionCoroutineAutoBatched(model)
+        return tfp.distributions.JointDistributionCoroutineAutoBatched(model)
 
-    def make_surrogate_posterior(self) -> tfd.Distribution:
+    def make_surrogate_posterior(self) -> tfp.distributions.Distribution:
         _init_loc = lambda shape=(): tf.Variable(
-            tf.random.uniform(shape, minval=-2., maxval=2.))
+            tf.random.uniform(shape, -2., 2.))
         _init_scale = lambda shape=(): tfp.util.TransformedVariable(
-            initial_value=tf.random.uniform(shape, minval=0.01, maxval=1.),
-            bijector=tfb.Softplus())
-        return tfd.JointDistributionSequentialAutoBatched([
-            tfb.Softplus()(tfd.Normal(_init_loc(), _init_scale())),  # scale_prior
-            tfd.Normal(_init_loc(), _init_scale()),  # intercept
-            tfd.Normal(_init_loc([self.num_levels]), _init_scale([self.num_levels]))])  # level_prior
+            initial_value=tf.random.uniform(shape, 0.01, 1.),
+            bijector=tfp.bijectors.Softplus())
+        return tfp.distributions.JointDistributionSequentialAutoBatched([
+            tfp.bijectors.Softplus()(tfp.distributions.Normal(_init_loc(), _init_scale())),  # scale_prior
+            tfp.distributions.Normal(_init_loc(), _init_scale()),  # intercept
+            tfp.distributions.Normal(_init_loc([self.num_levels]), _init_scale([self.num_levels]))])  # level_prior
 
     def call(self, feature_vals: tf.Tensor, training: bool = None, mask: Any = None) -> tf.Tensor:
         model = self.surrogate_posterior.model
-        intercept_estimate = model[1].mode()
-        random_effect_estimate = model[2].mode()
+        intercept_estimate = model[1].mean()
+        random_effect_estimate = model[2].mean()
+
         if training:
             return tf.gather(random_effect_estimate, feature_vals, axis=-1) + intercept_estimate
-        else:
-            # In order to accommodate new feature levels (not in train set) during prediction, we create
-            # a new level (self.num_levels) and assign all unseen levels to that value. We also add a
-            # corresponding 0 entry to the random_effect_estimate vector for that level.
-            # This ensures that unseen levels are assigned 0 + intercept_estimate in the output
-            random_effect_estimate_with_missing = tf.concat([random_effect_estimate, tf.zeros([1])], axis=-1)
-            feature_vals_with_missing = tf.where(
-                tf.math.logical_and(feature_vals < self.num_levels, feature_vals >= 0),
-                x=feature_vals,
-                y=self.num_levels
-            )
+
+        # In order to accommodate new feature levels (not in train set) during prediction, we create
+        # a new level (self.num_levels) and assign all unseen levels to that value. We also add a
+        # corresponding 0 entry to the random_effect_estimate vector for that level.
+        # This ensures that unseen levels are assigned 0 + intercept_estimate in the output
+        random_effect_estimate_with_missing = tf.concat([random_effect_estimate, tf.zeros([1])], -1)
+        feature_vals_with_missing = tf.where(
+            tf.math.logical_and(feature_vals < self.num_levels, feature_vals >= 0),
+            x=feature_vals,
+            y=self.num_levels
+        )
         return tf.gather(random_effect_estimate_with_missing, feature_vals_with_missing, axis=-1) + intercept_estimate
 
     def print_posterior_estimates(self) -> None:
         (scale_prior_estimate,
          intercept_estimate,
-         level_weights_estimate), _ = self.surrogate_posterior.sample_distributions()
+         _), _ = self.surrogate_posterior.sample_distributions()
         print(f"Intercept estimate = {intercept_estimate.mean()}")
         print(f"Random effect variance estimate = {tf.reduce_mean(scale_prior_estimate.sample(10000))}")
 
@@ -157,26 +154,20 @@ class GLMMMulticlassTargetEncoder(tf.keras.Model):
         merged_metrics = {}
         key_to_merge_func = {"loss": tf.reduce_sum}
         for key, merge_func in key_to_merge_func.items():
-            metric = tf.concat([x[key] for x in metrics_dict_list], axis=-1)
+            metric = tf.concat([x[key] for x in metrics_dict_list], 1)
             merged_metrics[key] = merge_func(metric)
         return merged_metrics
 
     def train_step(self, data: Tuple[tf.Tensor, tf.Tensor]) -> Dict[str, tf.Tensor]:
         x, y = data
         per_class_metrics_dicts = []
-        for c in range(self.num_classes):
-            y_class = tf.where(y == c, x=1, y=0)
-            per_class_metrics_dicts.append(self.models[c].train_step((x, y_class)))
+        for cls in range(self.num_classes):
+            y_class = tf.where(y == cls, x=1, y=0)
+            per_class_metrics_dicts.append(self.models[cls].train_step((x, y_class)))
 
         return self.__merge_metrics(per_class_metrics_dicts)
 
     def print_posterior_estimates(self) -> None:
         for i, class_model in enumerate(self.models):
             print(f"Sub-model for class {i}")
-            model = class_model.surrogate_posterior.model
-            intercept_estimate = model[1].mode()
-            print(f"\tIntercept estimate = {intercept_estimate}")
-
-            def softplus(x): return math.log1p(math.exp(-abs(x))) + max(x, 0)
-
-            print(f"\tRandom effect variance estimate = {softplus(model[0].distribution.mean().numpy())}")
+            class_model.print_posterior_estimates()
