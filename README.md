@@ -71,5 +71,5 @@ pass a seed into the sampling invocations, but this requires some investigation.
 Multiclass classification trains several binary GLMM encoders (one per class). This is pretty slow, especially for many
 output classes or large datasets. It might be possible to speed this up in the future.
 
-### Tests, typing/type checking and docstrings
+### Tests, type checking and docstrings
 These... don't exist at the moment and need to be added.
