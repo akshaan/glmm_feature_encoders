@@ -1,7 +1,7 @@
 from typing import List
 
 from glmm_encoder.examples.dataset_utils import Dataset, load_openml_dataset
-from glmm_encoder.encoders import GLMMMulticlassTargetEncoder
+from glmm_encoder.encoders import GLMMMultiClassifierFeatureEncoder
 from xgboost import XGBClassifier
 import numpy as np
 import tensorflow as tf
@@ -38,7 +38,7 @@ def glmm_encoder_model_preds(dataset: Dataset, model: Model) -> List[float]:
     col_to_encode = dataset.train_features[[dataset.col_to_encode]].values.flatten()
     n_levels = int(dataset.train_features[[dataset.col_to_encode]].nunique())
     n_classes = int(dataset.train_labels.nunique())
-    encoder = GLMMMulticlassTargetEncoder(num_levels=n_levels, num_classes=n_classes)
+    encoder = GLMMMultiClassifierFeatureEncoder(num_levels=n_levels, num_classes=n_classes)
     encoder.compile(optimizer=tf.optimizers.Adam(learning_rate=1e-2))
     encoder.fit(
         col_to_encode,

@@ -14,11 +14,12 @@ The `glmm_encoder/encoders` package carries TF based GLMM target encoders for re
 multiclass classification tasks. These encoders conform to the `tf.keras.Model` API and can be compiled, fit and 
 used for inference like any other TF model.
 
-#### Regression example:
+#### Example:
+
 ```python
 from glmm_encoder.examples.dataset_utils import load_toy_regression_dataset
 from glmm_encoder.examples.model_utils import log_likelihood_loss_plot
-from glmm_encoder.encoders import GLMMRegressionTargetEncoder
+from glmm_encoder.encoders import GLMMRegressionFeatureEncoder
 import numpy as np
 import tensorflow as tf
 import pandas as pd
@@ -29,7 +30,7 @@ if __name__ == "__main__":
     features = dataset[["x"]].astype(int).x.values
     n_levels = int(dataset[["x"]].nunique())
 
-    model = GLMMRegressionTargetEncoder(n_levels)
+    model = GLMMRegressionFeatureEncoder(n_levels)
     model.compile(optimizer=tf.optimizers.Adam(learning_rate=1e-2))
     history = model.fit(features, targets, batch_size=1000, epochs=100)
     pred_inputs = list(range(0, n_levels + 10))
@@ -45,6 +46,14 @@ if __name__ == "__main__":
 For similar examples for binary and multiclass classification tasks, take a look at 
 `glmm_encoder/examples/binary_classification/toy_bin_classification_example.py`
 and `glmm_encoder/examples/multiclass_classification/toy_multi_classification_example.py`
+
+
+#### Tests, linting, type checking and docstrings
+Unit tests... don't exist at the moment and need to be added.
+Type checking can be run using `make test-mypy`
+Docstyle checking can be run using `make test-docstyle`
+Linting can be run using `make test-pylint`
+To run all of these steps run `make test`
 
 
 ## Benchmarks
@@ -108,6 +117,3 @@ pass a seed into the sampling invocations, but this requires some investigation.
 ### Multiclass classification is slow
 Multiclass classification trains several binary GLMM encoders (one per class). This is pretty slow, especially for many
 output classes or large datasets. It might be possible to speed this up in the future.
-
-### Tests, type checking and docstrings
-These... don't exist at the moment and need to be added.

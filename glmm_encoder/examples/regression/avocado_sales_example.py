@@ -1,7 +1,7 @@
 from typing import List
 
 from glmm_encoder.examples.dataset_utils import Dataset, load_openml_dataset
-from glmm_encoder.encoders import GLMMRegressionTargetEncoder
+from glmm_encoder.encoders import GLMMRegressionFeatureEncoder
 from xgboost import XGBRegressor
 import tensorflow as tf
 import numpy as np
@@ -37,7 +37,7 @@ class Regressor(Model):
 def glmm_encoder_model_preds(dataset: Dataset, model: Model) -> List[float]:
     num_levels = int(dataset.train_features[[dataset.col_to_encode]].nunique())
     col_to_encode = dataset.train_features[[dataset.col_to_encode]].values.flatten()
-    encoder = GLMMRegressionTargetEncoder(num_levels)
+    encoder = GLMMRegressionFeatureEncoder(num_levels)
     encoder.compile(optimizer=tf.optimizers.Adam(learning_rate=1e-2))
     encoder.fit(
         col_to_encode,

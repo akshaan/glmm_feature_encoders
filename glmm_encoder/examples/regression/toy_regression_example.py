@@ -1,6 +1,6 @@
 from glmm_encoder.examples.dataset_utils import load_toy_regression_dataset
 from glmm_encoder.examples.model_utils import log_likelihood_loss_plot
-from glmm_encoder.encoders import GLMMRegressionTargetEncoder
+from glmm_encoder.encoders import GLMMRegressionFeatureEncoder
 import numpy as np
 import tensorflow as tf
 import pandas as pd
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     features = dataset[["x"]].astype(int).x.values
     n_levels = int(dataset[["x"]].nunique())
 
-    model = GLMMRegressionTargetEncoder(n_levels)
+    model = GLMMRegressionFeatureEncoder(n_levels)
     model.compile(optimizer=tf.optimizers.Adam(learning_rate=1e-2))
     history = model.fit(features, targets, batch_size=1000, epochs=100)
     pred_inputs = list(range(0, n_levels + 10))
