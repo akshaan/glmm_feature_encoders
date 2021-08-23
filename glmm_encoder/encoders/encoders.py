@@ -8,6 +8,7 @@ import tensorflow_probability as tfp
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
+
 class TaskTypes(Enum):
     REGRESSION = 1
     BINARY_CLASSIFICATION = 2
@@ -27,8 +28,8 @@ class BaseGLMMSingleTargetEncoder(tf.keras.Model):
             level_scale = yield tfp.distributions.Uniform(low=0., high=2., name='scale_prior')
             intercept = yield tfp.distributions.Normal(loc=0., scale=1, name='intercept')
             level_prior = yield tfp.distributions.Normal(loc=tf.zeros(self.num_levels),
-                                           scale=level_scale,
-                                           name='level_prior')
+                                                         scale=level_scale,
+                                                         name='level_prior')
             random_effect = tf.gather(level_prior, feature_vals, axis=-1)
             fixed_effect = intercept
             response = fixed_effect + random_effect
