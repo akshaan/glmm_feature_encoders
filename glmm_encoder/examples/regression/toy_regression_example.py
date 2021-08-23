@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     model = GLMMRegressionTargetEncoder(n_levels)
     model.compile(optimizer=tf.optimizers.Adam(learning_rate=1e-2))
-    history = model.fit(features, targets, batch_size=1000, epochs=1)
+    history = model.fit(features, targets, batch_size=1000, epochs=100)
     pred_inputs = list(range(0, n_levels + 10))
     predictions = pd.DataFrame(
         list(zip(pred_inputs, model.predict(pred_inputs).flatten().tolist())),

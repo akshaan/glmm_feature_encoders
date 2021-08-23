@@ -77,13 +77,11 @@ class BaseGLMMSingleTargetEncoder(tf.keras.Model):
         return tf.gather(random_effect_estimate_with_missing, feature_vals_with_missing, axis=-1) + intercept_estimate
 
     def print_posterior_estimates(self) -> None:
-        model = self.surrogate_posterior.model
-        intercept_estimate = model[1].mode()
-        print(f"Intercept estimate = {intercept_estimate}")
-
-        def softplus(x): return math.log1p(math.exp(-abs(x))) + max(x, 0)
-
-        print(f"Random effect variance estimate = {softplus(model[0].distribution.mean().numpy())}")
+        (scale_prior_estimate,
+         intercept_estimate,
+         level_weights_estimate), _ = self.surrogate_posterior.sample_distributions()
+        print(f"Intercept estimate = {intercept_estimate.mean()}")
+        print(f"Random effect variance estimate = {tf.reduce_mean(scale_prior_estimate.sample(10000))}")
 
     def train_step(self, data) -> Dict[str, tf.Tensor]:
         x, y = data
