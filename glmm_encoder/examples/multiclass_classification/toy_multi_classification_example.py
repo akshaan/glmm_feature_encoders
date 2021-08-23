@@ -1,13 +1,9 @@
 from glmm_encoder.examples.dataset_utils import load_toy_multiclass_classification_dataset
 from glmm_encoder.examples.model_utils import log_likelihood_loss_plot
 from glmm_encoder.encoders import GLMMMulticlassTargetEncoder
-import tensorflow_probability as tfp
 import numpy as np
 import tensorflow as tf
 import pandas as pd
-
-tfd = tfp.distributions
-tfb = tfp.bijectors
 
 if __name__ == "__main__":
     dataset = load_toy_multiclass_classification_dataset(seed=22)

@@ -1,7 +1,6 @@
 from glmm_encoder.examples.dataset_utils import load_toy_binary_classification_dataset
 from glmm_encoder.examples.model_utils import log_likelihood_loss_plot
 from glmm_encoder.encoders import GLMMBinaryTargetEncoder
-import tensorflow_probability as tfp
 import numpy as np
 import tensorflow as tf
 import pandas as pd
@@ -14,9 +13,6 @@ from rpy2.robjects.packages import importr
 
 parser = argparse.ArgumentParser(description="Toy Binary Classification Examples for GLMM Feature Encoders")
 parser.add_argument("--compare_with_R", help="Compare to R implementation using lme4", action="store_true")
-
-tfd = tfp.distributions
-tfb = tfp.bijectors
 
 if __name__ == "__main__":
     args = parser.parse_args()

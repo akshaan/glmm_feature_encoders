@@ -1,6 +1,6 @@
 # GLMM Target Encoders for High-Dimensional Categorical Features
 
-This repo carries a Tensorflow implementation of the Generalized Linear Mixed Effect Model (GLMM) encoders for high-dimensional categorical features described in
+This repo carries a Tensorflow implementation of the Generalized Linear Mixed Effect Model (GLMM) encoders described in
 [Regularized target encoding outperforms traditional methods in supervised machine learning with high cardinality features](https://arxiv.org/pdf/2104.00629.pdf)
 by Pargent et al.
 
@@ -10,10 +10,48 @@ using variational inference with a mean-field variational posterior over model p
 
 ## Usage
 
+The `glmm_encoder/encoders` package carries TF based GLMM target encoders for regression, binary classification and 
+multiclass classification tasks. These encoders conform to the `tf.keras.Model` API and can be compiled, fit and 
+used for inference like any other TF model.
+
+#### Regression example:
+```python
+from glmm_encoder.examples.dataset_utils import load_toy_regression_dataset
+from glmm_encoder.examples.model_utils import log_likelihood_loss_plot
+from glmm_encoder.encoders import GLMMRegressionTargetEncoder
+import numpy as np
+import tensorflow as tf
+import pandas as pd
+
+if __name__ == "__main__":
+    dataset = load_toy_regression_dataset(seed=22)
+    targets = dataset[["y"]].astype(np.float32).values.flatten()
+    features = dataset[["x"]].astype(int).x.values
+    n_levels = int(dataset[["x"]].nunique())
+
+    model = GLMMRegressionTargetEncoder(n_levels)
+    model.compile(optimizer=tf.optimizers.Adam(learning_rate=1e-2))
+    history = model.fit(features, targets, batch_size=1000, epochs=100)
+    pred_inputs = list(range(0, n_levels + 10))
+    predictions = pd.DataFrame(
+        list(zip(pred_inputs, model.predict(pred_inputs).flatten().tolist())),
+        columns=["Feature Level", "Encoded value"]
+    )
+    print(f"\nPredictions:\n{predictions.to_string()}\n")
+    model.print_posterior_estimates()
+    log_likelihood_loss_plot(history.history["loss"])
+```
+
+For similar examples for binary and multiclass classification tasks, take a look at 
+`glmm_encoder/examples/binary_classification/toy_bin_classification_example.py`
+and `glmm_encoder/examples/multiclass_classification/toy_multi_classification_example.py`
+
+
 ## Benchmarks
 ### Comparing GLMM target encoders to others
-Pargent et al. compare several categorical feature encoding types across datasets with using their R implementation. We do something similar with the TF implementation,
-but using only a single dataset per task (regression, binary classification, multiclass classification). The results of our comparison are shown below:
+Pargent et al. compare several categorical feature encoding types across datasets with using their R implementation. 
+We do something similar with the TF implementation, but using only a single dataset per task (regression, 
+binary classification, multiclass classification). The results of our comparison are shown below:
 
 ![Alt text](./Figure_1.png?raw=true "Figure 1.")
 
@@ -38,8 +76,8 @@ from a known distribution in both cases. The results of our comparison are below
 
 
 N.b. these comparisons were made over a small number of runs. To re-compute this benchmark, take a look at the
-`glmm_encoders/examples/regression/toy_bin_classification_example.py` and
-`glmm_encoders/examples/regression/toy_regression_example.py`. Specifically, the `--compare_with_R` flag, when supplied
+`glmm_encoder/examples/regression/toy_bin_classification_example.py` and
+`glmm_encoder/examples/regression/toy_regression_example.py`. Specifically, the `--compare_with_R` flag, when supplied
 to these scripts, runs a single run in both TF and R (via rpy2), with a fixed dataset. In order to change the dataset
 used, change the seed supplied to the dataset generating functions.
 
