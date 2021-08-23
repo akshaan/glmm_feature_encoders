@@ -97,7 +97,7 @@ they _should_ work with any distribution strategy used to train TF models. That 
 tested with distributed training, and it is not clear how the VI inference methods interact with distributed settings.
 This requires more exploration.
 
-### TF Warnings about auto-vectorized join distributions
+### TF Warnings about auto-vectorized joint distributions
 Currently, the GLMM encoders emit warnings of the form:
 ```buildoutcfg
 UserWarning: Saw Tensor seed 
