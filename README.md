@@ -50,10 +50,10 @@ and `glmm_encoder/examples/multiclass_classification/toy_multi_classification_ex
 
 #### Tests, linting, type checking and docstrings
 Unit tests... don't exist at the moment and need to be added.
-Type checking can be run using `make test-mypy`
-Docstyle checking can be run using `make test-docstyle`
-Linting can be run using `make test-pylint`
-To run all of these steps run `make test`
+Type checking can be run using `make test-mypy`.
+Docstyle checking can be run using `make test-docstyle`.
+Linting can be run using `make test-pylint`.
+To run all of these steps run `make test`.
 
 
 ## Benchmarks
